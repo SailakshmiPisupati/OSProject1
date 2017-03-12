@@ -37,8 +37,8 @@ int get_file_count(){
  
 int main(int argc , char *argv[])
 {
-  // float wait_sec = atof(argv[3]);
-  int wait_sec = 1;
+  //float wait_sec = atof(argv[3]);
+  int wait_sec = 10;
   file_to_read = argv[4];
  // printf("Arguments are:%s %s %s %s\n",argv[1],argv[2],argv[3],argv[4]);
 
@@ -88,15 +88,7 @@ int main(int argc , char *argv[])
    printf("Online Banking Application\n");
    printf("Number of clients connecting to the server are: %d\n",transaction_count);
     count = 0;
-    int next_time, current_time;
-    printf("Transaction count and count value:%d %d \n",(transaction_count-1),count );
-   if(count < transaction_count-1){
-       current_time = transaction_each[count].timestamp;
-       next_time = transaction_each[count+1].timestamp;
-       printf("Transaction count and count value:%d %d \n",current_time,next_time );
-       int wait_time = (next_time - current_time)*wait_sec;
-       printf("Wait time is : %d\n", wait_time);
-    }
+    
    //int send_count = htonl(transaction_count);
 
     //Create socket
@@ -118,8 +110,16 @@ int main(int argc , char *argv[])
     }
    get_records =fopen(file_to_read,"r");
    while(fgets(message,20,get_records)){
-    
-    
+    int next_time, current_time, wait_time;
+    printf("Transaction count and count value:%d %d \n",(transaction_count-1),count );
+   if(count < transaction_count-1){
+       current_time = transaction_each[count].timestamp;
+       next_time = transaction_each[count+1].timestamp;
+       printf("Transaction count and count value:%d %d \n",current_time,next_time );
+       wait_time = (next_time - current_time)* wait_sec;
+       printf("Wait time is : %d\n", wait_time);
+    }
+    count++;
    
 
       printf("Message %s\n",message );
@@ -135,8 +135,12 @@ int main(int argc , char *argv[])
          printf("recv failed");
       }
       printf("Server reply %s:",server_reply);
-      
-      
+      if(count<=transaction_count){
+         printf("Wait will start now\n");
+         sleep(wait_time);
+         printf("Wait ends now\n");
+      }
+     
    }
   
    fclose(get_records);     
