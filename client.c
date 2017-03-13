@@ -1,7 +1,8 @@
 #include <stdio.h> 
 #include <string.h>   
 #include <sys/socket.h>    
-#include <arpa/inet.h> 
+#include <arpa/inet.h>
+#include <time.h>
 
 struct transactions{
    int timestamp;
@@ -38,10 +39,10 @@ int get_file_count(){
 int main(int argc , char *argv[])
 {
   //float wait_sec = atof(argv[3]);
-  int wait_sec = 10;
+  int wait_sec = 1;
   file_to_read = argv[4];
-  short port_number = 8043;
-  // short port_number = argv[2];
+  short port_number = 8023;
+  // short port_number = atoi(argv[2]);
   // if(file_to_read == NULL){
   //   strcpy(file_to_read,"Transactions.txt");
   // }
@@ -49,7 +50,7 @@ int main(int argc , char *argv[])
   // if(port_number == NULL){
   //   port_number = 8043;
   // }
-
+  printf("Online Banking Application\n");
   printf("file_to_read %s\n", file_to_read);
   
   int sock;
@@ -70,6 +71,7 @@ int main(int argc , char *argv[])
    }
    printf("Number of accounts in file are : %d\n", transaction_count);
 
+   double transaction_time[transaction_count]; // for calculating the transation time
    struct transactions transaction_each[transaction_count];    //for reacding each space sepearted value
    //struct messages transac[transaction_count];
 
@@ -84,16 +86,16 @@ int main(int argc , char *argv[])
    fclose(get_records);
 
    int i;
+   printf("Loading the Transactions to be processes\n");
    for(i=0;i<transaction_count;i++){
       printf("The Transation details are\n");
-      printf("Transation time: %d\n", transaction_each[i].timestamp);
-      printf("Transation account number: %d\n", transaction_each[i].account_number);
-      printf("Transation type : %c\n", transaction_each[i].transaction_type);
-      printf("Transation balance amount : %d\n", transaction_each[i].amount);
+      printf("Transation time: %d, Transation account number: %d, Transation type : %c, Transation balance amount : %d\n", transaction_each[i].timestamp,transaction_each[i].account_number,transaction_each[i].transaction_type, transaction_each[i].amount);
+      // printf("Transation account number: %d\n", transaction_each[i].account_number);
+      // printf("Transation type : %c\n", transaction_each[i].transaction_type);
+      // printf("Transation balance amount : %d\n", transaction_each[i].amount);
    }
 
-   printf("Online Banking Application\n");
-   printf("Number of clients connecting to the server are: %d\n",transaction_count);
+   
     count = 0;
     
      //Create socket
@@ -114,40 +116,52 @@ int main(int argc , char *argv[])
         return 1;
     }
    get_records =fopen(file_to_read,"r");
+
+   clock_t totalstart = clock();
    while(fgets(message,20,get_records)){
     int next_time, current_time, wait_time;
-    printf("Transaction count and count value:%d %d \n",(transaction_count-1),count );
+    //printf("Transaction count and count value:%d %d \n",(transaction_count-1),count );
    if(count < transaction_count-1){
        current_time = transaction_each[count].timestamp;
        next_time = transaction_each[count+1].timestamp;
-       printf("Transaction count and count value:%d %d \n",current_time,next_time );
+      // printf("Transaction count and count value:%d %d \n",current_time,next_time );
        wait_time = (next_time - current_time)* wait_sec;
-       printf("Wait time is : %d\n", wait_time);
+       //printf("Wait time is : %d\n", wait_time);
     }
-    count++;
-   
-
+    
       printf("Message %s\n",message );
+      clock_t begin = clock();
       if(send(sock,&message,sizeof(message),0)<0){
          printf("Unable to connect to server. Please try again later");
       return 1;
        }
-
-       
+      
       if( recv(sock , server_reply , 2000 , 0) < 0)
       {
          printf("recv failed");
       }
-      printf("Server reply %s:",server_reply);
+      clock_t end = clock();
+      double time_spend = (double)(end-begin)/ CLOCKS_PER_SEC; 
+      transaction_time[count] = time_spend;
+      printf("Time taken for this transaction is %lf\n", time_spend);
+      printf("Server reply %s:\n",server_reply);
       if(count<=transaction_count){
-         printf("Wait will start now\n");
+         printf("Wait will start now for %d\n",wait_time);
          sleep(wait_time);
-         printf("Wait ends now\n");
-      }
-     
+         printf("Wait ends now. Sending next record.\n");
+      }  
+      count++;  
    }
 
-   fclose(get_records);     
+   fclose(get_records);  
+   printf("Calculating the average time\n");
+   
+   double avg_time;
+   for(i=0;i<transaction_count;i++){
+    avg_time = avg_time + transaction_time[i];
+   }
+   avg_time = avg_time/transaction_count;
+   printf("average time taken is: %lf\n", avg_time);
     close(sock);
     return 0;
 }
