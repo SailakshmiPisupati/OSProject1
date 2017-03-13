@@ -40,9 +40,16 @@ int main(int argc , char *argv[])
   //float wait_sec = atof(argv[3]);
   int wait_sec = 10;
   file_to_read = argv[4];
- // printf("Arguments are:%s %s %s %s\n",argv[1],argv[2],argv[3],argv[4]);
+  short port_number = 8043;
+  // short port_number = argv[2];
+  // if(file_to_read == NULL){
+  //   strcpy(file_to_read,"Transactions.txt");
+  // }
 
-  // printf("wait_sec is :%f\n", wait_sec);
+  // if(port_number == NULL){
+  //   port_number = 8043;
+  // }
+
   printf("file_to_read %s\n", file_to_read);
   
   int sock;
@@ -89,9 +96,7 @@ int main(int argc , char *argv[])
    printf("Number of clients connecting to the server are: %d\n",transaction_count);
     count = 0;
     
-   //int send_count = htonl(transaction_count);
-
-    //Create socket
+     //Create socket
     sock = socket(AF_INET , SOCK_STREAM , 0);
     if (sock == -1)
     {
@@ -100,7 +105,7 @@ int main(int argc , char *argv[])
      
     server.sin_addr.s_addr = inet_addr("127.0.0.1");
     server.sin_family = AF_INET;
-    server.sin_port = htons( 8888 );
+    server.sin_port = htons(port_number);
  
     //Connect to remote server
     if (connect(sock , (struct sockaddr *)&server , sizeof(server)) < 0)
@@ -123,13 +128,12 @@ int main(int argc , char *argv[])
    
 
       printf("Message %s\n",message );
-      // transac[count].transaction_queries = &message;
-      // count++;
       if(send(sock,&message,sizeof(message),0)<0){
          printf("Unable to connect to server. Please try again later");
       return 1;
        }
 
+       
       if( recv(sock , server_reply , 2000 , 0) < 0)
       {
          printf("recv failed");
@@ -142,7 +146,7 @@ int main(int argc , char *argv[])
       }
      
    }
-  
+
    fclose(get_records);     
     close(sock);
     return 0;

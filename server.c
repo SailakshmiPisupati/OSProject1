@@ -14,11 +14,13 @@ struct account_details{
    char name[20];
    int balance_amount;
    int connection_status;
+   pthread_mutex_t lock_account;
 };
 struct account_details bank_accounts[2];
 int account_count=1;
+ pthread_t calculate_interest;
 
-pthread_mutex_t lock_account;
+char message[2000];
 
 int get_file_count(){
    FILE *get_records;
@@ -40,13 +42,30 @@ int get_file_count(){
    return account_count;
 }
 
+void *update_interest(){
+  int rate_of_interest = 8.2F;
+  int i,interest,number_of_years =1,account_balance;
+  printf("\n");
+  printf("********************Server is now calculating the interest**************\n");
+  for(i=0;i<account_count;i++){
+
+    account_balance = bank_accounts[i].balance_amount;
+    interest = (int) (account_balance * number_of_years * rate_of_interest) /100;
+    account_balance = account_balance + interest;
+    bank_accounts[i].balance_amount = account_balance;
+    printf("Account number %d has been credited with interest of %d\n",bank_accounts[i].account_number,interest);
+    printf("Balance after deposit for account number %d is %d\n", bank_accounts[i].account_number,bank_accounts[i].balance_amount);
+  }
+  pthread_join( calculate_interest , NULL);
+}
+
 int main(int argc , char *argv[])
 {
    int socket_desc , c , *new_sock;
    int client_sock;
    struct sockaddr_in server , client;
    
-   int account_count= get_file_count();
+   account_count= get_file_count();
 
    FILE *get_records;
    int a,bal_amt;
@@ -100,7 +119,12 @@ int main(int argc , char *argv[])
     //Accept and incoming connection
     printf("Waiting for clients...\n");
     c = sizeof(struct sockaddr_in);
-     
+    
+   
+
+    if(pthread_create(&calculate_interest,NULL, update_interest,(void*) new_sock)< 0){
+      perror("could not create thread.");
+    }
      
     //Accept and incoming connection
    
@@ -120,7 +144,7 @@ int main(int argc , char *argv[])
         }
          
         //Now join the thread , so that we dont terminate before the thread
-        //pthread_join( sniffer_thread , NULL);
+       // pthread_join( sniffer_thread , NULL);
         //printf("Assigned new thread connection");
     }
      
@@ -134,29 +158,29 @@ int main(int argc , char *argv[])
 
 }
 
-int get_account_info(char *account_no) {
-  int i;
-  // char x = &account_no;
-  int x = atoi(account_no);
-  printf("%d", x);
-  for(i=0;i<account_count;i++){
-    printf("Account details: %d\n",bank_accounts[i].account_number);
-    // printf("Account details from client : %d \n",*(*int)account_no);
-    if(bank_accounts[i].account_number==x){
-       if(bank_accounts[i].connection_status == 0){
-          bank_accounts[i].connection_status=1;
-          //pthread_mutex_lock(&lock_account);
-          return bank_accounts[i].balance_amount;
-       }
-       else{
-          printf("Account in use. try again later.\n");
-        }  
-    }
-    else{
-      printf("Unable to find account details\n");
-   }
-  }
-}
+// int get_account_info(char *account_no) {
+//   int i;
+//   // char x = &account_no;
+//   int x = atoi(account_no);
+//   printf("%d", x);
+//   for(i=0;i<account_count;i++){
+//     printf("Account details: %d\n",bank_accounts[i].account_number);
+//     // printf("Account details from client : %d \n",*(*int)account_no);
+//     if(bank_accounts[i].account_number==x){
+//        if(bank_accounts[i].connection_status == 0){
+//           bank_accounts[i].connection_status=1;
+//           //pthread_mutex_lock(&lock_account);
+//           return bank_accounts[i].balance_amount;
+//        }
+//        else{
+//           printf("Account in use. try again later.\n");
+//         }  
+//     }
+//     else{
+//       printf("Unable to find account details\n");
+//    }
+//   }
+// }
 
 bool perform_transaction(char *account_no,char *transaction_type,char *transation_amount){
   // printf("Records recieved at perform_transaction are:\n");
@@ -173,16 +197,68 @@ bool perform_transaction(char *account_no,char *transaction_type,char *transatio
   int x = atoi(account_no);
   
   for(i=0;i<account_count;i++){
-    printf("Account details: %d\n",bank_accounts[i].account_number);
+    //printf("Account details: %d\n",bank_accounts[i].account_number);
     // printf("Account details from client : %d \n",*(*int)account_no);
     if(bank_accounts[i].account_number==x){
        if(bank_accounts[i].connection_status == 0){
-          bank_accounts[i].connection_status=1;
+          // bank_accounts[i].connection_status=1;
           
           account_balance = bank_accounts[i].balance_amount;
+          printf("Account Number: %d Account balance: %d \n", x ,account_balance);
+          switch(*(char*)transaction_type){
+          case 'w':
+            printf("*************************************************\n");
+            printf("Performing Withdrawal for account number %d\n",x);
+            
+            if((account_balance - itransaction_amt)> 0){
+              account_balance = account_balance - itransaction_amt;
+              
+              
+              printf("i value is %d\n", i);
+
+              pthread_mutex_lock(&bank_accounts[i].lock_account);
+             // pthread_mutex_lock(&lock_account);
+              wait(100);
+              bank_accounts[i].balance_amount = account_balance;
+              pthread_mutex_unlock(&bank_accounts[i].lock_account);
+              printf("Account balance after withdrawal is: %d\n",bank_accounts[i].balance_amount);
+             // bank_accounts[i].connection_status = 0;
+              //TODO write back to file
+              return true;  
+            }
+            else{
+              return false;
+            }
+            
+            printf("Amount after withdrawing :%d\n",account_balance);
+            //withdraw(account_no,balance_amount
+            break;
+          case 'd':
+            printf("*************************************************\n");
+            printf("Performing Deposit\n");
+            //withdraw(account_no,balance_amount);
+             account_balance = account_balance + itransaction_amt;
+              
+               printf("i value is %d\n", i);
+
+              pthread_mutex_lock(&bank_accounts[i].lock_account);
+             // pthread_mutex_lock(&lock_account);
+             // sleep(100);
+              bank_accounts[i].balance_amount = account_balance;
+              pthread_mutex_unlock(&bank_accounts[i].lock_account);
+              //bank_accounts[i].connection_status = 0;
+              printf("Account balance after withdrawal is: %d\n",bank_accounts[i].balance_amount);
+              strcpy(message,"Transaction successful. Account balance after withdrawal is: %d\n"+bank_accounts[i].balance_amount);
+
+
+              return true;
+              //TODO write back to file
+            break;
+        }
        }
        else{
           printf("Account in use. try again later.\n");
+          strcpy(message,"Account in use. try again later.\n");
         }  
         break;
     }
@@ -190,42 +266,6 @@ bool perform_transaction(char *account_no,char *transaction_type,char *transatio
       printf("Unable to find account details\n");
    }
   }
-
-  switch(*(char*)transaction_type){
-    case 'w':
-      printf("Performing Withdrawal\n");
-      
-      if((account_balance - itransaction_amt)> 0){
-        account_balance = account_balance - itransaction_amt;
-        printf("Account balance after withdrawal is: %d\n",account_balance);
-        
-        printf("i value is %d\n", i);
-
-        pthread_mutex_lock(&lock_account);
-        bank_accounts[i].balance_amount = account_balance;
-        pthread_mutex_unlock(&lock_account);
-
-        bank_accounts[i].connection_status = 0;
-        //TODO write back to file
-        return true;  
-      }
-      else{
-        return false;
-      }
-      
-      printf("Amount after withdrawing :%d\n",account_balance);
-      //withdraw(account_no,balance_amount
-      break;
-    case 'd':
-      printf("Performing Deposit\n");
-      //withdraw(account_no,balance_amount);
-       account_balance = account_balance + itransaction_amt;
-        printf("Account balance after deposit is: %d\n",account_balance);
-        return true;
-        //TODO write back to file
-      break;
-  }
-
 }
 
 /*
@@ -236,7 +276,7 @@ void *transaction_processor(void *socket_desc)
     //Get the socket descriptor
    int sock = *(int*)socket_desc;
    int read_size;
-   char *message , client_message[2000];
+   char client_message[2000];
   
    while((read_size = recv(sock,client_message,2000,0))>0){
     printf("Message from client %s\n",client_message );
@@ -252,11 +292,12 @@ void *transaction_processor(void *socket_desc)
 
     bool status = perform_transaction(account_no,transaction_type,transation_amount);
     if(status == true){
-      message ="Transaction successful.";
+      //strcpy(message,"Transaction successful");
+     //&message ="Transaction successful.";
       send(sock,&message,sizeof(message),0);
     }
     else{
-      message ="Transaction unsuccessful. Please try again later.";
+      //&message ="Transaction unsuccessful. Please try again later.";
       send(sock,&message,sizeof(message),0);
     }
 
