@@ -1,9 +1,0 @@
-TODOs:
-
-
-1. sepearte the string at server by spaces and get the account number
-2. check if the account is in use -> if 
-										yes push it on queue
-									else
-										put locks and perform transaction
-										send message to client on sucess
